@@ -19,3 +19,10 @@ go.work.sum
 .vscode/
 .github/
 .task/
+*.test
+*.test.exe
+*.out
+*.coverprofile
+coverage.txt
+profile.cov
+/tmp/
