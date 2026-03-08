@@ -1,4 +1,3 @@
-// Package database объединяет функциональность работы с базой данных и миграциями.
 package database
 
 import (
@@ -10,20 +9,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Config содержит настройки для базы данных и миграций.
 type Config struct {
-	Postgres        postgres.Config // Конфигурация PostgreSQL.
-	Migrate         migrate.Config  // Конфигурация миграций.
-	ApplyMigrations bool            // Флаг для применения миграций при инициализации.
+	Postgres        postgres.Config
+	Migrate         migrate.Config
+	ApplyMigrations bool
 }
 
-// Database представляет базу данных с подключением и миграциями.
 type Database struct {
-	provider postgres.Provider // Провайдер базы данных.
-	migrator migrate.Provider  // Провайдер миграций.
+	provider postgres.Provider
+	migrator migrate.Provider
 }
 
-// New создает новое подключение к базе данных и опционально применяет миграции.
 func New(ctx context.Context, cfg Config) (*Database, error) {
 	postgresDB, err := postgres.New(ctx, cfg.Postgres)
 	if err != nil {
@@ -47,7 +43,6 @@ func New(ctx context.Context, cfg Config) (*Database, error) {
 	return database, nil
 }
 
-// NewWithDSN создает новое подключение к базе данных по DSN строке и применяет миграции.
 func NewWithDSN(ctx context.Context, dsn string, minConn, maxConn int, migrationsPath string, applyMigrations bool) (*Database, error) {
 	postgresDB, err := postgres.NewWithDSN(ctx, dsn, minConn, maxConn)
 	if err != nil {
@@ -72,17 +67,14 @@ func NewWithDSN(ctx context.Context, dsn string, minConn, maxConn int, migration
 	return database, nil
 }
 
-// Pool возвращает пул соединений с базой данных.
 func (d *Database) Pool() *pgxpool.Pool {
 	return d.provider.Pool()
 }
 
-// Close закрывает соединение с базой данных.
 func (d *Database) Close(ctx context.Context) {
 	d.provider.Close(ctx)
 }
 
-// ApplyMigrations применяет миграции к базе данных.
 func (d *Database) ApplyMigrations(ctx context.Context) error {
 	dsn := d.provider.GetDSN()
 	if err := d.migrator.Up(ctx, dsn); err != nil {
@@ -91,7 +83,6 @@ func (d *Database) ApplyMigrations(ctx context.Context) error {
 	return nil
 }
 
-// RollbackMigrations откатывает все миграции.
 func (d *Database) RollbackMigrations(ctx context.Context) error {
 	dsn := d.provider.GetDSN()
 	if err := d.migrator.Down(ctx, dsn); err != nil {
@@ -100,7 +91,6 @@ func (d *Database) RollbackMigrations(ctx context.Context) error {
 	return nil
 }
 
-// GetMigrationVersion возвращает текущую версию миграции и статус "грязный".
 func (d *Database) GetMigrationVersion(ctx context.Context) (uint, bool, error) {
 	dsn := d.provider.GetDSN()
 	version, dirty, err := d.migrator.Version(ctx, dsn)
@@ -110,7 +100,6 @@ func (d *Database) GetMigrationVersion(ctx context.Context) (uint, bool, error) 
 	return version, dirty, nil
 }
 
-// Ping проверяет доступность базы данных.
 func (d *Database) Ping(ctx context.Context) error {
 	if err := d.provider.Ping(ctx); err != nil {
 		return fmt.Errorf("failed to ping database: %w", err)

@@ -16,10 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// ErrMigrationPathNotSpecified ошибка, возникающая, когда путь к миграциям не указан.
-var (
-	ErrMigrationPathNotSpecified = errors.New("migration path not specified")
-)
+var ErrMigrationPathNotSpecified = errors.New("migration path not specified")
 
 type MigrateInstance interface {
 	Up() error
@@ -29,21 +26,16 @@ type MigrateInstance interface {
 	Close() (source error, database error)
 }
 
-// Config содержит настройки для миграций.
 type Config struct {
-	// Путь к файлам миграций.
 	Path string
 }
 
-// Migrator представляет сервис для выполнения миграций базы данных.
 type Migrator struct{}
 
-// NewMigrator создает новый сервис миграций.
 func NewMigrator() *Migrator {
 	return &Migrator{}
 }
 
-// Up выполняет все доступные миграции.
 func (m *Migrator) Up(ctx context.Context, dsn string, cfg ...Config) error {
 	var path string
 	if len(cfg) > 0 && cfg[0].Path != "" {
@@ -68,7 +60,6 @@ func (m *Migrator) Up(ctx context.Context, dsn string, cfg ...Config) error {
 	return nil
 }
 
-// Down откатывает все миграции.
 func (m *Migrator) Down(ctx context.Context, dsn string, cfg ...Config) error {
 	var path string
 	if len(cfg) > 0 && cfg[0].Path != "" {
@@ -93,7 +84,6 @@ func (m *Migrator) Down(ctx context.Context, dsn string, cfg ...Config) error {
 	return nil
 }
 
-// Version возвращает текущую версию миграции и статус "грязный".
 func (m *Migrator) Version(ctx context.Context, dsn string, cfg ...Config) (uint, bool, error) {
 	var path string
 	if len(cfg) > 0 && cfg[0].Path != "" {
@@ -122,7 +112,6 @@ func (m *Migrator) Version(ctx context.Context, dsn string, cfg ...Config) (uint
 	return version, dirty, nil
 }
 
-// Force устанавливает определенную версию миграции принудительно.
 func (m *Migrator) Force(ctx context.Context, dsn string, version int, cfg ...Config) error {
 	var path string
 	if len(cfg) > 0 && cfg[0].Path != "" {
@@ -146,7 +135,6 @@ func (m *Migrator) Force(ctx context.Context, dsn string, version int, cfg ...Co
 	return nil
 }
 
-// createMigrator создает новый экземпляр мигратора.
 func (m *Migrator) createMigrator(ctx context.Context, dsn string, path string) (*migrate.Migrate, error) {
 	migrator, err := migrate.New(path, dsn)
 	if err != nil {
@@ -156,7 +144,6 @@ func (m *Migrator) createMigrator(ctx context.Context, dsn string, path string) 
 	return migrator, nil
 }
 
-// closeMigrator безопасно закрывает мигратор.
 func (m *Migrator) closeMigrator(ctx context.Context, migrator *migrate.Migrate) {
 	sourceErr, dbErr := migrator.Close()
 	if sourceErr != nil {

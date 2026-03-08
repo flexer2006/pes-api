@@ -1,4 +1,3 @@
-// Package postgres предоставляет функциональность для работы с PostgreSQL.
 package postgres
 
 import (
@@ -13,12 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// ErrInvalidConfiguration ошибка, возникающая при неверной конфигурации базы данных.
-var (
-	ErrInvalidConfiguration = errors.New("invalid database configuration: required fields missing")
-)
+var ErrInvalidConfiguration = errors.New("invalid database configuration: required fields missing")
 
-// Config содержит настройки для подключения к базе данных.
 type Config struct {
 	Host     string
 	Port     int
@@ -30,7 +25,6 @@ type Config struct {
 	MaxConns int
 }
 
-// Validate проверяет конфигурацию на валидность.
 func (c Config) Validate() error {
 	if c.Host == "" || c.Port == 0 || c.User == "" || c.Database == "" {
 		return ErrInvalidConfiguration
@@ -38,19 +32,16 @@ func (c Config) Validate() error {
 	return nil
 }
 
-// DSN возвращает строку подключения к базе данных.
 func (c Config) DSN() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		c.User, c.Password, c.Host, c.Port, c.Database, c.SSLMode)
 }
 
-// Database представляет соединение с PostgreSQL.
 type Database struct {
 	pool   *pgxpool.Pool
 	config Config
 }
 
-// New создает новое соединение с базой данных PostgreSQL.
 func New(ctx context.Context, config Config) (*Database, error) {
 	if err := config.Validate(); err != nil {
 		logger.Error(ctx, "invalid database configuration", zap.Error(err))
@@ -116,7 +107,6 @@ func New(ctx context.Context, config Config) (*Database, error) {
 	}, nil
 }
 
-// NewWithDSN создает новое соединение с базой данных по DSN.
 func NewWithDSN(ctx context.Context, dsn string, minConn, maxConn int) (*Database, error) {
 	logger.Info(ctx, "connecting to postgres database")
 
@@ -173,18 +163,15 @@ func NewWithDSN(ctx context.Context, dsn string, minConn, maxConn int) (*Databas
 	}, nil
 }
 
-// Pool возвращает пул соединений с базой данных.
 func (db *Database) Pool() *pgxpool.Pool {
 	return db.pool
 }
 
-// Close закрывает соединение с базой данных.
 func (db *Database) Close(ctx context.Context) {
 	logger.Info(ctx, "closing postgres database connection")
 	db.pool.Close()
 }
 
-// Ping проверяет доступность базы данных.
 func (db *Database) Ping(ctx context.Context) error {
 	if db.pool == nil {
 		return fmt.Errorf("failed to ping database: connection pool is nil")
@@ -196,12 +183,10 @@ func (db *Database) Ping(ctx context.Context) error {
 	return nil
 }
 
-// Config возвращает конфигурацию базы данных.
 func (db *Database) Config() Config {
 	return db.config
 }
 
-// GetDSN возвращает строку подключения к базе данных.
 func (db *Database) GetDSN() string {
 	return db.config.DSN()
 }

@@ -1,35 +1,54 @@
-// Package enrichment предоставляет реализацию сервисов обогащения данных.
 package enrichment
 
 import (
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/enrichment/api"
-	apiports "github.com/flexer2006/case-person-enrichment-go/internal/service/ports/api"
-	peopleapi "github.com/flexer2006/case-person-enrichment-go/internal/service/ports/api/people"
+	"context"
+
+	api "github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/enrichment/services"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	apiports "github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
+
+	"github.com/google/uuid"
 )
 
-// Проверка, что Enrichment реализует интерфейс apiports.Api.
 var _ apiports.API = (*Enrichment)(nil)
 
-// Enrichment реализует интерфейс apiports.Api, предоставляя доступ к сервисам обогащения данных.
 type Enrichment struct {
-	api *api.API
+	impl *api.API
 }
 
-// NewEnrichment создает новый экземпляр Enrichment с указанными API сервисами.
-func NewEnrichment(api *api.API) *Enrichment {
-	return &Enrichment{
-		api: api,
-	}
+func NewEnrichment(apiImpl *api.API) *Enrichment {
+	return &Enrichment{impl: apiImpl}
 }
 
-// NewDefaultEnrichment создает новый экземпляр Enrichment с API сервисами по умолчанию.
 func NewDefaultEnrichment() *Enrichment {
-	return &Enrichment{
-		api: api.NewDefaultAPI(),
-	}
+	return &Enrichment{impl: api.NewDefaultAPI()}
 }
 
-// People возвращает интерфейсы для работы с данными о людях.
-func (e *Enrichment) People() peopleapi.Services {
-	return e.api.People()
+func (e *Enrichment) Age() interface {
+	GetAgeByName(ctx context.Context, name string) (int, float64, error)
+} {
+	return e.impl.Age()
+}
+
+func (e *Enrichment) Gender() interface {
+	GetGenderByName(ctx context.Context, name string) (string, float64, error)
+} {
+	return e.impl.Gender()
+}
+
+func (e *Enrichment) Nationality() interface {
+	GetNationalityByName(ctx context.Context, name string) (string, float64, error)
+} {
+	return e.impl.Nationality()
+}
+
+func (e *Enrichment) Person() interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+	GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error)
+	CreatePerson(ctx context.Context, person *domain.Person) error
+	UpdatePerson(ctx context.Context, person *domain.Person) error
+	DeletePerson(ctx context.Context, id uuid.UUID) error
+	EnrichPerson(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+} {
+	return e.impl.Person()
 }

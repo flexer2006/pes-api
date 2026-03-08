@@ -1,4 +1,3 @@
-// Package app содержит центральную точку связывания компонентов приложения.
 package app
 
 import (
@@ -9,32 +8,27 @@ import (
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/enrichment"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/postgres"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/server"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain/entities"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain/services/person"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports/api"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports/repo"
-	personrepo "github.com/flexer2006/case-person-enrichment-go/internal/service/ports/repo/people/person"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/setup"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
 	"github.com/flexer2006/case-person-enrichment-go/pkg/database/migrate"
 	pgadapter "github.com/flexer2006/case-person-enrichment-go/pkg/database/postgres"
 	"github.com/flexer2006/case-person-enrichment-go/pkg/logger"
+
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-// Application представляет основное приложение, объединяющее все компоненты.
 type Application struct {
-	config        *setup.Config
+	config        *domain.Config
 	db            *pgadapter.Database
 	pgAdapter     *postgres.Adapter
-	apiAdapter    api.API
-	repositories  repo.Repositories
+	apiAdapter    ports.API
+	repositories  ports.Repositories
 	httpServer    *server.Server
-	personService person.Service
+	personService *personServiceImpl
 }
 
-// NewApplication создает новый экземпляр приложения с указанной конфигурацией.
-func NewApplication(ctx context.Context, config *setup.Config) (*Application, error) {
+func NewApplication(ctx context.Context, config *domain.Config) (*Application, error) {
 	logger.Info(ctx, "initializing application")
 
 	dbConfig := pgadapter.Config{
@@ -48,7 +42,6 @@ func NewApplication(ctx context.Context, config *setup.Config) (*Application, er
 		MaxConns: config.Postgres.PoolMaxConns,
 	}
 
-	// Создание базы данных
 	database, err := pgadapter.New(ctx, dbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
@@ -70,7 +63,7 @@ func NewApplication(ctx context.Context, config *setup.Config) (*Application, er
 
 	personSvc := NewPersonService(pgAdapter.Repositories(), apiAdapter)
 
-	httpServer := server.New(config.Server, apiAdapter, pgAdapter.Repositories())
+	httpServer := server.New(*config, apiAdapter, pgAdapter.Repositories())
 
 	app := &Application{
 		config:        config,
@@ -86,7 +79,6 @@ func NewApplication(ctx context.Context, config *setup.Config) (*Application, er
 	return app, nil
 }
 
-// Start запускает все сервисы приложения.
 func (a *Application) Start(ctx context.Context) error {
 	logger.Info(ctx, "starting application")
 
@@ -96,7 +88,6 @@ func (a *Application) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop останавливает все сервисы приложения.
 func (a *Application) Stop(ctx context.Context) error {
 	logger.Info(ctx, "stopping application")
 
@@ -120,90 +111,77 @@ func (a *Application) Stop(ctx context.Context) error {
 	return nil
 }
 
-// Repositories возвращает репозитории приложения.
-func (a *Application) Repositories() repo.Repositories {
+func (a *Application) Repositories() ports.Repositories {
 	return a.repositories
 }
 
-// API возвращает API-адаптер приложения.
-func (a *Application) API() api.API {
+func (a *Application) API() ports.API {
 	return a.apiAdapter
 }
 
-// PersonService возвращает сервис для работы с персонами.
-func (a *Application) PersonService() person.Service {
+func (a *Application) PersonService() *personServiceImpl {
 	return a.personService
 }
 
-// NewPersonService создает новый сервис для работы с персонами.
-func NewPersonService(repositories repo.Repositories, apiAdapter api.API) person.Service {
+func NewPersonService(repositories ports.Repositories, apiAdapter ports.API) *personServiceImpl {
 	return &personServiceImpl{
-		repository: repositories.People().Person(),
-		apiAdapter: apiAdapter,
+		repositories: repositories,
+		apiAdapter:   apiAdapter,
 	}
 }
 
-// personServiceImpl реализует интерфейс PersonService.
 type personServiceImpl struct {
-	repository personrepo.Repository
-	apiAdapter api.API
+	repositories ports.Repositories
+	apiAdapter   ports.API
 }
 
-// Реализация методов PersonService...
-// GetByID возвращает персону по идентификатору.
-func (s *personServiceImpl) GetByID(ctx context.Context, id uuid.UUID) (*entities.Person, error) {
-	person, err := s.repository.GetByID(ctx, id)
+func (s *personServiceImpl) GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error) {
+	person, err := s.repositories.Person().GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get person by ID: %w", err)
 	}
 	return person, nil
 }
 
-// GetPersons возвращает список персон с фильтрацией и пагинацией.
-func (s *personServiceImpl) GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*entities.Person, int, error) {
-	persons, count, err := s.repository.GetPersons(ctx, filter, offset, limit)
+func (s *personServiceImpl) GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error) {
+	persons, count, err := s.repositories.Person().GetPersons(ctx, filter, offset, limit)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get persons: %w", err)
 	}
 	return persons, count, nil
 }
 
-// CreatePerson создает новую персону.
-func (s *personServiceImpl) CreatePerson(ctx context.Context, person *entities.Person) error {
-	if err := s.repository.CreatePerson(ctx, person); err != nil {
+func (s *personServiceImpl) CreatePerson(ctx context.Context, person *domain.Person) error {
+	if err := s.repositories.Person().CreatePerson(ctx, person); err != nil {
 		return fmt.Errorf("failed to create person: %w", err)
 	}
 	return nil
 }
 
-// UpdatePerson обновляет существующую персону.
-func (s *personServiceImpl) UpdatePerson(ctx context.Context, person *entities.Person) error {
-	if err := s.repository.UpdatePerson(ctx, person); err != nil {
+func (s *personServiceImpl) UpdatePerson(ctx context.Context, person *domain.Person) error {
+	if err := s.repositories.Person().UpdatePerson(ctx, person); err != nil {
 		return fmt.Errorf("failed to update person: %w", err)
 	}
 	return nil
 }
 
-// DeletePerson удаляет персону по идентификатору.
 func (s *personServiceImpl) DeletePerson(ctx context.Context, id uuid.UUID) error {
-	if err := s.repository.DeletePerson(ctx, id); err != nil {
+	if err := s.repositories.Person().DeletePerson(ctx, id); err != nil {
 		return fmt.Errorf("failed to delete person: %w", err)
 	}
 	return nil
 }
 
-// EnrichPerson обогащает данные персоны (возраст, пол, национальность).
-func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*entities.Person, error) {
+func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*domain.Person, error) {
 	logger.Debug(ctx, "enriching person data", zap.String("id", id.String()))
 
-	person, err := s.repository.GetByID(ctx, id)
+	person, err := s.repositories.Person().GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get person: %w", err)
 	}
 
 	if person.Age == nil {
-		ageService := s.apiAdapter.People().Age()
-		age, _, err := ageService.GetAgeByName(ctx, person.Name)
+		age, _, err := s.apiAdapter.Age().GetAgeByName(ctx, person.Name)
 		if err == nil {
 			person.Age = &age
 		} else {
@@ -211,10 +189,8 @@ func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*en
 		}
 	}
 
-	// Обогащение данными о поле
 	if person.Gender == nil {
-		genderService := s.apiAdapter.People().Gender()
-		gender, probability, err := genderService.GetGenderByName(ctx, person.Name)
+		gender, probability, err := s.apiAdapter.Gender().GetGenderByName(ctx, person.Name)
 		if err == nil {
 			person.Gender = &gender
 			person.GenderProbability = &probability
@@ -224,8 +200,7 @@ func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*en
 	}
 
 	if person.Nationality == nil {
-		nationalityService := s.apiAdapter.People().Nationality()
-		nationality, probability, err := nationalityService.GetNationalityByName(ctx, person.Name)
+		nationality, probability, err := s.apiAdapter.Nationality().GetNationalityByName(ctx, person.Name)
 		if err == nil {
 			person.Nationality = &nationality
 			person.NationalityProbability = &probability
@@ -234,7 +209,7 @@ func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*en
 		}
 	}
 
-	err = s.repository.UpdatePerson(ctx, person)
+	err = s.repositories.Person().UpdatePerson(ctx, person)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save enriched person data: %w", err)
 	}

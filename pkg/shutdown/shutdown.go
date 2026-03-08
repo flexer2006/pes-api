@@ -1,5 +1,3 @@
-// Package shutdown предоставляет функциональность для корректного завершения приложения
-// путем ожидания и обработки сигналов SIGINT и SIGTERM.
 package shutdown
 
 import (
@@ -11,9 +9,6 @@ import (
 	"time"
 )
 
-// Wait блокирует выполнение до получения сигнала SIGINT или SIGTERM,
-// затем выполняет все хуки в рамках заданного timeout.
-// Если контекст завершается до получения сигнала, функция также завершает работу.
 func Wait(ctx context.Context, timeout time.Duration, hooks ...func(context.Context) error) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

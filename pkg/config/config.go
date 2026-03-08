@@ -1,4 +1,3 @@
-// Package config содержит утилиты для загрузки конфигурации из переменных окружения.
 package config
 
 import (
@@ -11,20 +10,14 @@ import (
 	"go.uber.org/zap"
 )
 
-// LoggableConfig интерфейс для типов конфигурации, которые могут предоставить поля для логирования.
 type LoggableConfig interface {
 	LogFields() []zap.Field
 }
 
-// LoadOptions содержит опции для загрузки конфигурации.
 type LoadOptions struct {
 	ConfigPath string
 }
 
-// Load загружает конфигурацию для любого типа T.
-// Если указан путь к файлу конфигурации, сначала загружается из него.
-// Затем загружаются переменные окружения, которые могут переопределить значения из файла.
-// Если тип T реализует интерфейс LoggableConfig, его поля будут залогированы.
 func Load[T any](ctx context.Context, opts ...LoadOptions) (*T, error) {
 	log := logger.GetContextLogger(ctx)
 	log.Info("loading configuration")

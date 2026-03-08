@@ -1,54 +1,62 @@
- ignoreGeneratedHeader = false
-severity = "warning"
+ignoreGeneratedHeader = true
+severity = "warning"   
+confidence = 0.8        
+
+[[rule]]
+name = "error-strings"
+
+[[rule]]
+name = "error-check"
+
+[rule.params]
+ignoreRegex = 'fmt\.(F|Print)f?'
+
+[[rule]]
+name = "naked-return"
+
+[[rule]]
+name = "unused-result"
 
 [[rule]]
 name = "exported"
-disabled = false
+[rule.params]
+localOnly = false
+
+[[rule]]
+name = "import-shadow"
 
 [[rule]]
 name = "package-comments"
-disabled = false
 
 [[rule]]
-name = "dot-imports"
-disabled = false
-
-[[rule]]
-name = "var-naming"
-disabled = false
-
-[rule.var-naming]
-min_length = 2
-max_length = 40
-
-[[rule]]
-name = "unused-parameter"
-disabled = false
+name = "cyclomatic"
+[rule.params]
+max = 15
 
 [[rule]]
 name = "indent-error-flow"
-disabled = false
 
 [[rule]]
-name = "error-naming"
-disabled = false
+name = "blank-imports"
+[rule.params]
+exclude = ["_"]
 
 [[rule]]
-name = "context-as-argument"
-disabled = false
+name = "var-naming"
+[rule.params]
+regexp = "^[a-z][A-Za-z0-9]*$"
 
 [[rule]]
-name = "waitgroup-by-value"
-disabled = false
+name = "shadow"
 
 [[rule]]
-name = "cognitive-complexity"
-disabled = false
+name = "structtag"
 
 [[rule]]
-name = "empty-block"
-disabled = false
+name = "nesting"
+[rule.params]
+max = 3
 
 [[rule]]
-name = "unhandled-error"
-disabled = false
+name = "error-format"
+

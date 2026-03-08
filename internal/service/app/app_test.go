@@ -6,14 +6,7 @@ import (
 	"testing"
 
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/app"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain/entities"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports/api/people"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports/api/people/age"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports/api/people/gender"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports/api/people/nationality"
-	personapi "github.com/flexer2006/case-person-enrichment-go/internal/service/ports/api/people/person"
-	repopeople "github.com/flexer2006/case-person-enrichment-go/internal/service/ports/repo/people"
-	personrepo "github.com/flexer2006/case-person-enrichment-go/internal/service/ports/repo/people/person"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -24,55 +17,101 @@ type mockAPIAdapter struct {
 	mock.Mock
 }
 
-func (m *mockAPIAdapter) People() people.Services {
+func (m *mockAPIAdapter) Age() interface {
+	GetAgeByName(ctx context.Context, name string) (int, float64, error)
+} {
 	args := m.Called()
-	return args.Get(0).(people.Services)
+	return args.Get(0).(interface {
+		GetAgeByName(ctx context.Context, name string) (int, float64, error)
+	})
+}
+
+func (m *mockAPIAdapter) Gender() interface {
+	GetGenderByName(ctx context.Context, name string) (string, float64, error)
+} {
+	args := m.Called()
+	return args.Get(0).(interface {
+		GetGenderByName(ctx context.Context, name string) (string, float64, error)
+	})
+}
+
+func (m *mockAPIAdapter) Nationality() interface {
+	GetNationalityByName(ctx context.Context, name string) (string, float64, error)
+} {
+	args := m.Called()
+	return args.Get(0).(interface {
+		GetNationalityByName(ctx context.Context, name string) (string, float64, error)
+	})
+}
+
+func (m *mockAPIAdapter) Person() interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+	GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error)
+	CreatePerson(ctx context.Context, person *domain.Person) error
+	UpdatePerson(ctx context.Context, person *domain.Person) error
+	DeletePerson(ctx context.Context, id uuid.UUID) error
+	EnrichPerson(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+} {
+	args := m.Called()
+	return args.Get(0).(interface {
+		GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+		GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error)
+		CreatePerson(ctx context.Context, person *domain.Person) error
+		UpdatePerson(ctx context.Context, person *domain.Person) error
+		DeletePerson(ctx context.Context, id uuid.UUID) error
+		EnrichPerson(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+	})
 }
 
 type mockRepositories struct {
 	mock.Mock
 }
 
-func (m *mockRepositories) People() repopeople.Repositories {
+func (m *mockRepositories) Person() interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+	GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error)
+	CreatePerson(ctx context.Context, person *domain.Person) error
+	UpdatePerson(ctx context.Context, person *domain.Person) error
+	DeletePerson(ctx context.Context, id uuid.UUID) error
+	ExistsByID(ctx context.Context, id uuid.UUID) (bool, error)
+} {
 	args := m.Called()
-	return args.Get(0).(repopeople.Repositories)
-}
-
-type mockPeopleRepositories struct {
-	mock.Mock
-}
-
-func (m *mockPeopleRepositories) Person() personrepo.Repository {
-	args := m.Called()
-	return args.Get(0).(personrepo.Repository)
+	return args.Get(0).(interface {
+		GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+		GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error)
+		CreatePerson(ctx context.Context, person *domain.Person) error
+		UpdatePerson(ctx context.Context, person *domain.Person) error
+		DeletePerson(ctx context.Context, id uuid.UUID) error
+		ExistsByID(ctx context.Context, id uuid.UUID) (bool, error)
+	})
 }
 
 type mockPersonRepository struct {
 	mock.Mock
 }
 
-func (m *mockPersonRepository) GetByID(ctx context.Context, id uuid.UUID) (*entities.Person, error) {
+func (m *mockPersonRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*entities.Person), args.Error(1)
+	return args.Get(0).(*domain.Person), args.Error(1)
 }
 
-func (m *mockPersonRepository) GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*entities.Person, int, error) {
+func (m *mockPersonRepository) GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error) {
 	args := m.Called(ctx, filter, offset, limit)
 	if args.Get(0) == nil {
 		return nil, args.Int(1), args.Error(2)
 	}
-	return args.Get(0).([]*entities.Person), args.Int(1), args.Error(2)
+	return args.Get(0).([]*domain.Person), args.Int(1), args.Error(2)
 }
 
-func (m *mockPersonRepository) CreatePerson(ctx context.Context, person *entities.Person) error {
+func (m *mockPersonRepository) CreatePerson(ctx context.Context, person *domain.Person) error {
 	args := m.Called(ctx, person)
 	return args.Error(0)
 }
 
-func (m *mockPersonRepository) UpdatePerson(ctx context.Context, person *entities.Person) error {
+func (m *mockPersonRepository) UpdatePerson(ctx context.Context, person *domain.Person) error {
 	args := m.Called(ctx, person)
 	return args.Error(0)
 }
@@ -85,30 +124,6 @@ func (m *mockPersonRepository) DeletePerson(ctx context.Context, id uuid.UUID) e
 func (m *mockPersonRepository) ExistsByID(ctx context.Context, id uuid.UUID) (bool, error) {
 	args := m.Called(ctx, id)
 	return args.Bool(0), args.Error(1)
-}
-
-type mockPeopleServices struct {
-	mock.Mock
-}
-
-func (m *mockPeopleServices) Person() personapi.Service {
-	args := m.Called()
-	return args.Get(0).(personapi.Service)
-}
-
-func (m *mockPeopleServices) Age() age.Service {
-	args := m.Called()
-	return args.Get(0).(age.Service)
-}
-
-func (m *mockPeopleServices) Gender() gender.Service {
-	args := m.Called()
-	return args.Get(0).(gender.Service)
-}
-
-func (m *mockPeopleServices) Nationality() nationality.Service {
-	args := m.Called()
-	return args.Get(0).(nationality.Service)
 }
 
 type mockAgeService struct {
@@ -138,26 +153,12 @@ func (m *mockNationalityService) GetNationalityByName(ctx context.Context, name 
 	return args.String(0), args.Get(1).(float64), args.Error(2)
 }
 
-type mockPersonAPIService struct {
-	mock.Mock
-}
-
-func (m *mockPersonAPIService) GetByName(ctx context.Context, name string) (*entities.Person, error) {
-	args := m.Called(ctx, name)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*entities.Person), args.Error(1)
-}
-
 func TestNewPersonService(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
+	repositories.On("Person").Return(personRepo)
 
 	service := app.NewPersonService(repositories, apiAdapter)
 	require.NotNil(t, service)
@@ -166,14 +167,12 @@ func TestNewPersonService(t *testing.T) {
 func TestPersonServiceGetByID(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
 	ctx := context.Background()
 	id := uuid.New()
-	expectedPerson := &entities.Person{ID: id, Name: "John Doe"}
+	expectedPerson := &domain.Person{ID: id, Name: "John Doe"}
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
+	repositories.On("Person").Return(personRepo)
 	personRepo.On("GetByID", mock.Anything, id).Return(expectedPerson, nil)
 
 	service := app.NewPersonService(repositories, apiAdapter)
@@ -187,14 +186,12 @@ func TestPersonServiceGetByID(t *testing.T) {
 func TestPersonServiceGetByIDError(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
 	ctx := context.Background()
 	id := uuid.New()
 	expectedError := errors.New("person not found")
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
+	repositories.On("Person").Return(personRepo)
 	personRepo.On("GetByID", mock.Anything, id).Return(nil, expectedError)
 
 	service := app.NewPersonService(repositories, apiAdapter)
@@ -208,18 +205,16 @@ func TestPersonServiceGetByIDError(t *testing.T) {
 func TestPersonServiceGetPersons(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
 	ctx := context.Background()
 	filter := map[string]any{"name": "John"}
-	expectedPersons := []*entities.Person{
+	expectedPersons := []*domain.Person{
 		{ID: uuid.New(), Name: "John Doe"},
 		{ID: uuid.New(), Name: "John Smith"},
 	}
 	expectedCount := 2
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
+	repositories.On("Person").Return(personRepo)
 	personRepo.On("GetPersons", mock.Anything, filter, 0, 10).Return(expectedPersons, expectedCount, nil)
 
 	service := app.NewPersonService(repositories, apiAdapter)
@@ -234,13 +229,11 @@ func TestPersonServiceGetPersons(t *testing.T) {
 func TestPersonServiceCreatePerson(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
 	ctx := context.Background()
-	person := &entities.Person{Name: "John Doe"}
+	person := &domain.Person{Name: "John Doe"}
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
+	repositories.On("Person").Return(personRepo)
 	personRepo.On("CreatePerson", mock.Anything, person).Return(nil)
 
 	service := app.NewPersonService(repositories, apiAdapter)
@@ -253,13 +246,11 @@ func TestPersonServiceCreatePerson(t *testing.T) {
 func TestPersonServiceUpdatePerson(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
 	ctx := context.Background()
-	person := &entities.Person{ID: uuid.New(), Name: "John Doe"}
+	person := &domain.Person{ID: uuid.New(), Name: "John Doe"}
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
+	repositories.On("Person").Return(personRepo)
 	personRepo.On("UpdatePerson", mock.Anything, person).Return(nil)
 
 	service := app.NewPersonService(repositories, apiAdapter)
@@ -272,13 +263,11 @@ func TestPersonServiceUpdatePerson(t *testing.T) {
 func TestPersonServiceDeletePerson(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
 	ctx := context.Background()
 	id := uuid.New()
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
+	repositories.On("Person").Return(personRepo)
 	personRepo.On("DeletePerson", mock.Anything, id).Return(nil)
 
 	service := app.NewPersonService(repositories, apiAdapter)
@@ -291,24 +280,21 @@ func TestPersonServiceDeletePerson(t *testing.T) {
 func TestPersonServiceEnrichPerson(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
-	peopleServices := new(mockPeopleServices)
 	ageService := new(mockAgeService)
 	genderService := new(mockGenderService)
 	nationalityService := new(mockNationalityService)
-	personAPIService := new(mockPersonAPIService)
 
 	ctx := context.Background()
 	id := uuid.New()
-	person := &entities.Person{ID: id, Name: "John Doe"}
+	person := &domain.Person{ID: id, Name: "John Doe"}
 	expectedAge := 30
 	expectedGender := "male"
 	expectedNationality := "US"
 	genderProb := 0.95
 	nationalityProb := 0.85
 
-	enrichedPerson := &entities.Person{
+	enrichedPerson := &domain.Person{
 		ID:                     id,
 		Name:                   "John Doe",
 		Age:                    &expectedAge,
@@ -318,20 +304,16 @@ func TestPersonServiceEnrichPerson(t *testing.T) {
 		NationalityProbability: &nationalityProb,
 	}
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
-	apiAdapter.On("People").Return(peopleServices)
-
-	peopleServices.On("Person").Return(personAPIService)
-	peopleServices.On("Age").Return(ageService)
-	peopleServices.On("Gender").Return(genderService)
-	peopleServices.On("Nationality").Return(nationalityService)
+	repositories.On("Person").Return(personRepo)
+	apiAdapter.On("Age").Return(ageService)
+	apiAdapter.On("Gender").Return(genderService)
+	apiAdapter.On("Nationality").Return(nationalityService)
 
 	personRepo.On("GetByID", mock.Anything, id).Return(person, nil)
 	ageService.On("GetAgeByName", mock.Anything, "John Doe").Return(expectedAge, 0.9, nil)
 	genderService.On("GetGenderByName", mock.Anything, "John Doe").Return(expectedGender, genderProb, nil)
 	nationalityService.On("GetNationalityByName", mock.Anything, "John Doe").Return(expectedNationality, nationalityProb, nil)
-	personRepo.On("UpdatePerson", mock.Anything, mock.MatchedBy(func(p *entities.Person) bool {
+	personRepo.On("UpdatePerson", mock.Anything, mock.MatchedBy(func(p *domain.Person) bool {
 		return p.ID == id &&
 			p.Name == "John Doe" &&
 			*p.Age == expectedAge &&
@@ -362,35 +344,27 @@ func TestPersonServiceEnrichPerson(t *testing.T) {
 func TestPersonServiceEnrichPersonPartialFailure(t *testing.T) {
 	repositories := new(mockRepositories)
 	apiAdapter := new(mockAPIAdapter)
-	peopleRepo := new(mockPeopleRepositories)
 	personRepo := new(mockPersonRepository)
-	peopleServices := new(mockPeopleServices)
 	ageService := new(mockAgeService)
 	genderService := new(mockGenderService)
 	nationalityService := new(mockNationalityService)
-	personAPIService := new(mockPersonAPIService)
-
 	ctx := context.Background()
 	id := uuid.New()
-	person := &entities.Person{ID: id, Name: "John Doe"}
+	person := &domain.Person{ID: id, Name: "John Doe"}
 	expectedGender := "male"
 	genderProb := 0.95
 
-	peopleRepo.On("Person").Return(personRepo)
-	repositories.On("People").Return(peopleRepo)
-	apiAdapter.On("People").Return(peopleServices)
-
-	peopleServices.On("Person").Return(personAPIService)
-	peopleServices.On("Age").Return(ageService)
-	peopleServices.On("Gender").Return(genderService)
-	peopleServices.On("Nationality").Return(nationalityService)
+	repositories.On("Person").Return(personRepo)
+	apiAdapter.On("Age").Return(ageService)
+	apiAdapter.On("Gender").Return(genderService)
+	apiAdapter.On("Nationality").Return(nationalityService)
 
 	personRepo.On("GetByID", mock.Anything, id).Return(person, nil)
 	ageService.On("GetAgeByName", mock.Anything, "John Doe").Return(0, 0.0, errors.New("age service error"))
 	genderService.On("GetGenderByName", mock.Anything, "John Doe").Return(expectedGender, genderProb, nil)
 	nationalityService.On("GetNationalityByName", mock.Anything, "John Doe").Return("", 0.0, errors.New("nationality service error"))
 
-	personRepo.On("UpdatePerson", mock.Anything, mock.MatchedBy(func(p *entities.Person) bool {
+	personRepo.On("UpdatePerson", mock.Anything, mock.MatchedBy(func(p *domain.Person) bool {
 		return p.ID == id &&
 			p.Name == "John Doe" &&
 			p.Age == nil &&
