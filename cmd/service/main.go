@@ -70,11 +70,12 @@ func run() error {
 		return err
 	}
 	version, dirty, err := data.GetMigrationVersion(ctx)
-	if err != nil {
+	switch {
+	case err != nil:
 		utilities.Warn(ctx, "failed to get migration version", zap.Error(err))
-	} else if dirty {
+	case dirty:
 		utilities.Warn(ctx, "database has dirty migration", zap.Uint("version", version))
-	} else {
+	default:
 		utilities.Info(ctx, "current migration version", zap.Uint("version", version))
 	}
 	utilities.Info(ctx, "database initialized successfully")
