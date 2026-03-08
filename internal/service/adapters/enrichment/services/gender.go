@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/flexer2006/case-person-enrichment-go/internal/logger"
 	domain "github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilies"
 	"go.uber.org/zap"
 )
 
@@ -28,7 +28,7 @@ func (c *APIClient) GetGenderByName(ctx context.Context, name string) (string, f
 
 	if name == "" {
 		logger.Error(ctx, "empty name provided for gender prediction")
-		return "", 0, ErrEmptyName
+		return "", 0, domain.ErrEmptyName
 	}
 
 	reqURL, err := url.Parse(c.baseURL)
@@ -61,7 +61,7 @@ func (c *APIClient) GetGenderByName(ctx context.Context, name string) (string, f
 	if resp.StatusCode != http.StatusOK {
 		logger.Error(ctx, "API returned non-200 status code",
 			zap.Int("status_code", resp.StatusCode))
-		return "", 0, fmt.Errorf("%w: status %d", ErrNon200Response, resp.StatusCode)
+		return "", 0, fmt.Errorf("%w: status %d", domain.ErrNon200Response, resp.StatusCode)
 	}
 
 	var genderResp domain.GenderResponse

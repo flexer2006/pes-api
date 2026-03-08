@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/flexer2006/case-person-enrichment-go/internal/database/postgres"
-	"github.com/flexer2006/case-person-enrichment-go/internal/logger"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilies"
+	"github.com/flexer2006/case-person-enrichment-go/internal/utilies/database"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -19,10 +19,10 @@ import (
 )
 
 type Repository struct {
-	db postgres.Provider
+	db database.PostgresProvider
 }
 
-func NewRepository(db postgres.Provider) *Repository {
+func NewRepository(db database.PostgresProvider) *Repository {
 	return &Repository{
 		db: db,
 	}

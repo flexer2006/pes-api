@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/flexer2006/case-person-enrichment-go/internal/database/migrate"
-	pgadapter "github.com/flexer2006/case-person-enrichment-go/internal/database/postgres"
-	"github.com/flexer2006/case-person-enrichment-go/internal/logger"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/enrichment"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/postgres"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/server"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
+	"github.com/flexer2006/case-person-enrichment-go/internal/utilies"
+	dbpkg "github.com/flexer2006/case-person-enrichment-go/internal/utilies/database"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -20,7 +19,7 @@ import (
 
 type Application struct {
 	config        *domain.Config
-	db            *pgadapter.Database
+	db            *dbpkg.PostgresDB
 	pgAdapter     *postgres.Adapter
 	apiAdapter    ports.API
 	repositories  ports.Repositories
@@ -29,9 +28,9 @@ type Application struct {
 }
 
 func NewApplication(ctx context.Context, config *domain.Config) (*Application, error) {
-	logger.Info(ctx, "initializing application")
+	utilies.Info(ctx, "initializing application")
 
-	dbConfig := pgadapter.Config{
+	dbConfig := dbpkg.PostgresConfig{
 		Host:     config.Postgres.Host,
 		Port:     config.Postgres.Port,
 		User:     config.Postgres.User,
@@ -42,16 +41,13 @@ func NewApplication(ctx context.Context, config *domain.Config) (*Application, e
 		MaxConns: config.Postgres.PoolMaxConns,
 	}
 
-	database, err := pgadapter.New(ctx, dbConfig)
+	database, err := dbpkg.NewPostgres(ctx, dbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
 	if config.Migrations.Path != "" {
-		migrateConfig := migrate.Config{
-			Path: config.Migrations.Path,
-		}
-		migrator := migrate.NewAdapter(migrateConfig)
+		migrator := dbpkg.NewMig(dbpkg.MigrateConfig{Path: config.Migrations.Path})
 		if err := migrator.Up(ctx, database.GetDSN()); err != nil {
 			return nil, fmt.Errorf("failed to apply migrations: %w", err)
 		}
@@ -75,12 +71,12 @@ func NewApplication(ctx context.Context, config *domain.Config) (*Application, e
 		personService: personSvc,
 	}
 
-	logger.Info(ctx, "application initialized successfully")
+	utilies.Info(ctx, "application initialized successfully")
 	return app, nil
 }
 
 func (a *Application) Start(ctx context.Context) error {
-	logger.Info(ctx, "starting application")
+	utilies.Info(ctx, "starting application")
 
 	if err := a.httpServer.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start HTTP server: %w", err)
@@ -89,12 +85,12 @@ func (a *Application) Start(ctx context.Context) error {
 }
 
 func (a *Application) Stop(ctx context.Context) error {
-	logger.Info(ctx, "stopping application")
+	utilies.Info(ctx, "stopping application")
 
 	shutdownTimeout, err := time.ParseDuration(a.config.Graceful.ShutdownTimeout)
 	if err != nil {
 		shutdownTimeout = 5 * time.Second
-		logger.Warn(ctx, "invalid graceful shutdown timeout, using default",
+		utilies.Warn(ctx, "invalid graceful shutdown timeout, using default",
 			zap.String("default", shutdownTimeout.String()))
 	}
 
@@ -102,21 +98,19 @@ func (a *Application) Stop(ctx context.Context) error {
 	defer cancel()
 
 	if err := a.httpServer.Stop(ctx); err != nil {
-		logger.Error(ctx, "error stopping HTTP server", zap.Error(err))
+		utilies.Error(ctx, "error stopping HTTP server", zap.Error(err))
 	}
 
 	a.pgAdapter.Close(ctx)
 
-	logger.Info(ctx, "application stopped")
+	utilies.Info(ctx, "application stopped")
 	return nil
 }
 
-// Repositories returns the application's storage interface.
 func (a *Application) Repositories() ports.Repositories {
 	return a.repositories
 }
 
-// API returns the external API adapter.
 func (a *Application) API() ports.API {
 	return a.apiAdapter
 }
@@ -179,7 +173,7 @@ func (s *personServiceImpl) DeletePerson(ctx context.Context, id uuid.UUID) erro
 }
 
 func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*domain.Person, error) {
-	logger.Debug(ctx, "enriching person data", zap.String("id", id.String()))
+	utilies.Debug(ctx, "enriching person data", zap.String("id", id.String()))
 
 	person, err := s.repositories.GetByID(ctx, id)
 	if err != nil {
@@ -191,7 +185,7 @@ func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*do
 		if err == nil {
 			person.Age = &age
 		} else {
-			logger.Warn(ctx, "failed to enrich with age data", zap.Error(err))
+			utilies.Warn(ctx, "failed to enrich with age data", zap.Error(err))
 		}
 	}
 
@@ -201,7 +195,7 @@ func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*do
 			person.Gender = &gender
 			person.GenderProbability = &probability
 		} else {
-			logger.Warn(ctx, "failed to enrich with gender data", zap.Error(err))
+			utilies.Warn(ctx, "failed to enrich with gender data", zap.Error(err))
 		}
 	}
 
@@ -211,7 +205,7 @@ func (s *personServiceImpl) EnrichPerson(ctx context.Context, id uuid.UUID) (*do
 			person.Nationality = &nationality
 			person.NationalityProbability = &probability
 		} else {
-			logger.Warn(ctx, "failed to enrich with nationality data", zap.Error(err))
+			utilies.Warn(ctx, "failed to enrich with nationality data", zap.Error(err))
 		}
 	}
 

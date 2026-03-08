@@ -4,67 +4,64 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/flexer2006/case-person-enrichment-go/internal/database/migrate"
-	"github.com/flexer2006/case-person-enrichment-go/internal/database/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Config struct {
-	Postgres        postgres.Config
-	Migrate         migrate.Config
+	Postgres        PostgresConfig
+	Migrate         MigrateConfig
 	ApplyMigrations bool
 }
 
 type Database struct {
-	provider postgres.Provider
-	migrator migrate.Provider
+	provider PostgresProvider
+	migrator Provider
 }
 
 func New(ctx context.Context, cfg Config) (*Database, error) {
-	postgresDB, err := postgres.New(ctx, cfg.Postgres)
+	postgresDB, err := NewPostgres(ctx, cfg.Postgres)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup database: %w", err)
 	}
 
-	migrator := migrate.NewAdapter(cfg.Migrate)
+	migrator := NewMig(cfg.Migrate)
 
-	database := &Database{
+	db := &Database{
 		provider: postgresDB,
 		migrator: migrator,
 	}
 
 	if cfg.ApplyMigrations {
-		if err := database.ApplyMigrations(ctx); err != nil {
-			database.Close(ctx)
+		if err := db.ApplyMigrations(ctx); err != nil {
+			db.Close(ctx)
 			return nil, err
 		}
 	}
 
-	return database, nil
+	return db, nil
 }
 
 func NewWithDSN(ctx context.Context, dsn string, minConn, maxConn int, migrationsPath string, applyMigrations bool) (*Database, error) {
-	postgresDB, err := postgres.NewWithDSN(ctx, dsn, minConn, maxConn)
+	postgresDB, err := NewPostgresWithDSN(ctx, dsn, minConn, maxConn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup database: %w", err)
 	}
 
-	migrateConfig := migrate.Config{Path: migrationsPath}
-	migrator := migrate.NewAdapter(migrateConfig)
+	migrator := NewMig(MigrateConfig{Path: migrationsPath})
 
-	database := &Database{
+	db := &Database{
 		provider: postgresDB,
 		migrator: migrator,
 	}
 
-	if applyMigrations && migrationsPath != "" {
-		if err := database.ApplyMigrations(ctx); err != nil {
-			database.Close(ctx)
+	if applyMigrations {
+		if err := db.ApplyMigrations(ctx); err != nil {
+			db.Close(ctx)
 			return nil, err
 		}
 	}
 
-	return database, nil
+	return db, nil
 }
 
 func (d *Database) Pool() *pgxpool.Pool {

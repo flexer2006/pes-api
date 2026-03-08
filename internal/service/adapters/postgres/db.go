@@ -4,18 +4,18 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/flexer2006/case-person-enrichment-go/internal/database/postgres"
-	"github.com/flexer2006/case-person-enrichment-go/internal/logger"
 	repoports "github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
+	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilies"
+	"github.com/flexer2006/case-person-enrichment-go/internal/utilies/database"
 	"go.uber.org/zap"
 )
 
 type Adapter struct {
-	db           postgres.Provider
+	db           database.PostgresProvider
 	repositories repoports.Repositories
 }
 
-func NewPostgresAdapter(db postgres.Provider) *Adapter {
+func NewPostgresAdapter(db database.PostgresProvider) *Adapter {
 	return &Adapter{
 		db:           db,
 		repositories: NewRepositories(db),
@@ -26,7 +26,7 @@ func (p *Adapter) Repositories() repoports.Repositories {
 	return p.repositories
 }
 
-func (p *Adapter) DB() postgres.Provider {
+func (p *Adapter) DB() database.PostgresProvider {
 	return p.db
 }
 

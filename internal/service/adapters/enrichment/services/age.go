@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/flexer2006/case-person-enrichment-go/internal/logger"
 	domain "github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilies"
 
 	"go.uber.org/zap"
 )
@@ -29,7 +29,7 @@ func (c *APIClient) GetAgeByName(ctx context.Context, name string) (int, float64
 
 	if name == "" {
 		logger.Error(ctx, "empty name provided for age prediction")
-		return 0, 0, ErrEmptyName
+		return 0, 0, domain.ErrEmptyName
 	}
 
 	reqURL, err := url.Parse(c.baseURL)
@@ -62,7 +62,7 @@ func (c *APIClient) GetAgeByName(ctx context.Context, name string) (int, float64
 	if resp.StatusCode != http.StatusOK {
 		logger.Error(ctx, "API returned non-200 status code",
 			zap.Int("status_code", resp.StatusCode))
-		return 0, 0, fmt.Errorf("%w: status %d", ErrNon200Response, resp.StatusCode)
+		return 0, 0, fmt.Errorf("%w: status %d", domain.ErrNon200Response, resp.StatusCode)
 	}
 
 	var ageResp domain.AgeResponse

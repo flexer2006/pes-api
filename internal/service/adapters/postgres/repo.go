@@ -3,9 +3,9 @@ package postgres
 import (
 	"context"
 
-	"github.com/flexer2006/case-person-enrichment-go/internal/database/postgres"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
+	"github.com/flexer2006/case-person-enrichment-go/internal/utilies/database"
 
 	"github.com/google/uuid"
 )
@@ -16,7 +16,7 @@ type Repositories struct {
 	personRepo *Repository
 }
 
-func NewRepositories(db postgres.Provider) *Repositories {
+func NewRepositories(db database.PostgresProvider) *Repositories {
 	return &Repositories{
 		personRepo: NewRepository(db),
 	}
