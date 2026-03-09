@@ -9,37 +9,30 @@ import (
 	"go.uber.org/zap"
 )
 
-type LoggableConfig interface {
-	LogFields() []zap.Field
-}
-
 type LoadOptions struct {
 	ConfigPath string
 }
 
 func Load[T any](ctx context.Context, opts ...LoadOptions) (*T, error) {
 	Info(ctx, "loading configuration")
-	var options LoadOptions
-	if len(opts) > 0 {
-		options = opts[0]
-	}
-	var cfg T
-	if options.ConfigPath != "" {
-		if _, err := os.Stat(options.ConfigPath); err == nil {
-			if err := cleanenv.ReadConfig(options.ConfigPath, &cfg); err != nil {
-				Error(ctx, "failed to load configuration", zap.Error(err), zap.String("path", options.ConfigPath))
-				return nil, fmt.Errorf("%s from file %s: %w", "failed to load configuration", options.ConfigPath, err)
+	cfg := new(T)
+	if len(opts) > 0 && opts[0].ConfigPath != "" {
+		path := opts[0].ConfigPath
+		if fi, err := os.Stat(path); err == nil && !fi.IsDir() {
+			if err := cleanenv.ReadConfig(path, cfg); err != nil {
+				Error(ctx, "config read failed", zap.Error(err), zap.String("path", path))
+				return nil, fmt.Errorf("read config %s: %w", path, err)
 			}
 		}
 	}
-	if err := cleanenv.ReadEnv(&cfg); err != nil {
-		Error(ctx, "failed to load configuration", zap.Error(err))
-		return nil, fmt.Errorf("%s from environment: %w", "failed to load configuration", err)
+	if err := cleanenv.ReadEnv(cfg); err != nil {
+		Error(ctx, "env read failed", zap.Error(err))
+		return nil, fmt.Errorf("read env: %w", err)
 	}
-	if loggable, ok := any(&cfg).(LoggableConfig); ok {
-		Info(ctx, "configuration loaded successfully", loggable.LogFields()...)
+	if loggable, ok := any(cfg).(interface{ LogFields() []zap.Field }); ok {
+		Info(ctx, "configuration loaded", loggable.LogFields()...)
 	} else {
-		Info(ctx, "configuration loaded successfully")
+		Info(ctx, "configuration loaded")
 	}
-	return &cfg, nil
+	return cfg, nil
 }

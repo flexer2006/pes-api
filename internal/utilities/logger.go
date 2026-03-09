@@ -3,123 +3,69 @@ package utilities
 import (
 	"context"
 	"os"
-	"regexp"
-	"sync"
+	"sync/atomic"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-type LogLevel = zapcore.Level
-
 const (
-	DebugLevel LogLevel = zapcore.DebugLevel
-	InfoLevel  LogLevel = zapcore.InfoLevel
-	WarnLevel  LogLevel = zapcore.WarnLevel
-	ErrorLevel LogLevel = zapcore.ErrorLevel
-	FatalLevel LogLevel = zapcore.FatalLevel
+	DebugLevel = zapcore.DebugLevel
+	InfoLevel  = zapcore.InfoLevel
+	WarnLevel  = zapcore.WarnLevel
+	ErrorLevel = zapcore.ErrorLevel
+	FatalLevel = zapcore.FatalLevel
 )
 
-type Logger struct {
-	*zap.Logger
-}
+type Logger struct{ *zap.Logger }
 
-var (
-	global   *Logger
-	once     sync.Once
-	globalMu sync.RWMutex
-)
+var global atomic.Value
 
 func Global() *Logger {
-	globalMu.RLock()
-	lg := global
-	globalMu.RUnlock()
-	if lg != nil {
-		return lg
+	if lg := global.Load(); lg != nil {
+		return lg.(*Logger)
 	}
-	once.Do(func() {
-		l, err := NewProduction()
-		if err != nil {
-			l = NewConsole(InfoLevel, true)
-		}
-		globalMu.Lock()
-		global = l
-		globalMu.Unlock()
-	})
-	return global
+	l, err := NewProduction()
+	if err != nil {
+		l = NewConsole(InfoLevel, true)
+	}
+	global.Store(l)
+	return l
 }
 
 func SetGlobal(l *Logger) {
-	if l == nil {
-		return
+	if l != nil {
+		global.Store(l)
 	}
-	globalMu.Lock()
-	global = l
-	globalMu.Unlock()
 }
 
-func NewDevelopment() (*Logger, error) {
-	zapLogger, err := zap.NewDevelopmentConfig().Build()
+func buildFrom(cfg zap.Config) (*Logger, error) {
+	z, err := cfg.Build()
 	if err != nil {
 		return nil, err
 	}
-	return new(Logger{zapLogger}), nil
+	return new(Logger{z}), nil
 }
 
-func NewProduction() (*Logger, error) {
-	zapLogger, err := zap.NewProductionConfig().Build()
-	if err != nil {
-		return nil, err
-	}
-	return new(Logger{zapLogger}), nil
-}
+func NewDevelopment() (*Logger, error) { return buildFrom(zap.NewDevelopmentConfig()) }
+func NewProduction() (*Logger, error)  { return buildFrom(zap.NewProductionConfig()) }
 
-func NewConsole(level LogLevel, json bool) *Logger {
-	encCfg := zap.NewProductionEncoderConfig()
-	encCfg.EncodeTime = zapcore.ISO8601TimeEncoder
-	var enc zapcore.Encoder
+func NewConsole(level zapcore.Level, json bool) *Logger {
+	enc := zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig())
 	if json {
-		enc = zapcore.NewJSONEncoder(encCfg)
-	} else {
-		enc = zapcore.NewConsoleEncoder(encCfg)
+		enc = zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
 	}
-	return new(Logger{zap.New(zapcore.NewCore(enc, zapcore.AddSync(os.Stdout), zap.NewAtomicLevelAt(zapcore.Level(level))), zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))})
+	core := zapcore.NewCore(enc, zapcore.AddSync(os.Stdout), zap.NewAtomicLevelAt(zapcore.Level(level)))
+	return new(Logger{zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))})
 }
 
-func (l *Logger) With(fields ...zap.Field) *Logger {
-	if l == nil {
-		return l
-	}
-	return new(Logger{l.Logger.With(fields...)})
-}
+func (l *Logger) with(fields ...zap.Field) *Logger { return new(Logger{l.Logger.With(fields...)}) }
 
-func (l *Logger) Sync() error {
-	if l == nil || l.Logger == nil {
-		return nil
-	}
-	return l.Logger.Sync()
-}
-
-type ctxKey string
-
-const (
-	loggerKey    ctxKey = "logger"
-	requestIDKey ctxKey = "request_id"
-)
-
-func WithLogger(ctx context.Context, log *Logger) context.Context {
-	if ctx == nil || log == nil {
-		return ctx
-	}
-	return context.WithValue(ctx, loggerKey, log)
-}
-
-func FromContext(ctx context.Context) *Logger {
+func fromContext(ctx context.Context) *Logger {
 	if ctx == nil {
 		return nil
 	}
-	if v := ctx.Value(loggerKey); v != nil {
+	if v := ctx.Value("logger"); v != nil {
 		if l, ok := v.(*Logger); ok {
 			return l
 		}
@@ -127,31 +73,11 @@ func FromContext(ctx context.Context) *Logger {
 	return nil
 }
 
-func WithFields(ctx context.Context, fields ...zap.Field) context.Context {
-	l := loggerFromContext(ctx)
-	if l == nil {
-		return ctx
-	}
-	return WithLogger(ctx, l.With(fields...))
-}
-
-var uuidRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-
-func WithRequestID(ctx context.Context, id string) context.Context {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if id == "" || !(id != "" && uuidRegex.MatchString(id)) {
-		id = uuid.New().String()
-	}
-	return context.WithValue(ctx, requestIDKey, id)
-}
-
-func RequestID(ctx context.Context) (string, bool) {
+func requestID(ctx context.Context) (string, bool) {
 	if ctx == nil {
 		return "", false
 	}
-	if v := ctx.Value(requestIDKey); v != nil {
+	if v := ctx.Value("request_id"); v != nil {
 		if s, ok := v.(string); ok {
 			return s, true
 		}
@@ -159,53 +85,44 @@ func RequestID(ctx context.Context) (string, bool) {
 	return "", false
 }
 
-func GenerateRequestID() string {
-	return uuid.New().String()
-}
-
 func loggerFromContext(ctx context.Context) *Logger {
-	l := FromContext(ctx)
+	l := fromContext(ctx)
 	if l == nil {
 		l = Global()
 	}
-	if id, ok := RequestID(ctx); ok && id != "" {
-		return l.With(zap.String(string(requestIDKey), id))
+	if id, ok := requestID(ctx); ok && id != "" {
+		return l.with(zap.String(string("request_id"), id))
 	}
 	return l
 }
 
-func Log(ctx context.Context, level LogLevel, msg string, fields ...zap.Field) {
-	l := loggerFromContext(ctx)
-	if l == nil {
-		return
-	}
-	switch level {
-	case DebugLevel:
-		l.Debug(msg, fields...)
-	case InfoLevel:
-		l.Info(msg, fields...)
-	case WarnLevel:
-		l.Warn(msg, fields...)
-	case ErrorLevel:
-		l.Error(msg, fields...)
-	case FatalLevel:
-		l.Fatal(msg, fields...)
-	default:
-		l.Info(msg, fields...)
+func log(ctx context.Context, level zapcore.Level, msg string, fields ...zap.Field) {
+	if l := loggerFromContext(ctx); l != nil {
+		switch level {
+		case DebugLevel:
+			l.Debug(msg, fields...)
+		case InfoLevel:
+			l.Info(msg, fields...)
+		case WarnLevel:
+			l.Warn(msg, fields...)
+		case ErrorLevel:
+			l.Error(msg, fields...)
+		case FatalLevel:
+			l.Fatal(msg, fields...)
+		default:
+			l.Info(msg, fields...)
+		}
 	}
 }
 
 func Debug(ctx context.Context, msg string, fields ...zap.Field) {
-	Log(ctx, DebugLevel, msg, fields...)
+	log(ctx, DebugLevel, msg, fields...)
 }
-
-func Info(ctx context.Context, msg string, fields ...zap.Field) { Log(ctx, InfoLevel, msg, fields...) }
-func Warn(ctx context.Context, msg string, fields ...zap.Field) { Log(ctx, WarnLevel, msg, fields...) }
-
+func Info(ctx context.Context, msg string, fields ...zap.Field) { log(ctx, InfoLevel, msg, fields...) }
+func Warn(ctx context.Context, msg string, fields ...zap.Field) { log(ctx, WarnLevel, msg, fields...) }
 func Error(ctx context.Context, msg string, fields ...zap.Field) {
-	Log(ctx, ErrorLevel, msg, fields...)
+	log(ctx, ErrorLevel, msg, fields...)
 }
-
 func Fatal(ctx context.Context, msg string, fields ...zap.Field) {
-	Log(ctx, FatalLevel, msg, fields...)
+	log(ctx, FatalLevel, msg, fields...)
 }
