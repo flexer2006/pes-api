@@ -64,7 +64,7 @@ func NewDevelopment() (*Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Logger{zapLogger}, nil
+	return new(Logger{zapLogger}), nil
 }
 
 func NewProduction() (*Logger, error) {
@@ -72,7 +72,7 @@ func NewProduction() (*Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Logger{zapLogger}, nil
+	return new(Logger{zapLogger}), nil
 }
 
 func NewConsole(level LogLevel, json bool) *Logger {
@@ -84,14 +84,14 @@ func NewConsole(level LogLevel, json bool) *Logger {
 	} else {
 		enc = zapcore.NewConsoleEncoder(encCfg)
 	}
-	return &Logger{zap.New(zapcore.NewCore(enc, zapcore.AddSync(os.Stdout), zap.NewAtomicLevelAt(zapcore.Level(level))), zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))}
+	return new(Logger{zap.New(zapcore.NewCore(enc, zapcore.AddSync(os.Stdout), zap.NewAtomicLevelAt(zapcore.Level(level))), zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))})
 }
 
 func (l *Logger) With(fields ...zap.Field) *Logger {
 	if l == nil {
 		return l
 	}
-	return &Logger{l.Logger.With(fields...)}
+	return new(Logger{l.Logger.With(fields...)})
 }
 
 func (l *Logger) Sync() error {
@@ -141,7 +141,7 @@ func WithRequestID(ctx context.Context, id string) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if id == "" || !IsValidUUID(id) {
+	if id == "" || !(id != "" && uuidRegex.MatchString(id)) {
 		id = uuid.New().String()
 	}
 	return context.WithValue(ctx, requestIDKey, id)
@@ -157,10 +157,6 @@ func RequestID(ctx context.Context) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-func IsValidUUID(id string) bool {
-	return id != "" && uuidRegex.MatchString(id)
 }
 
 func GenerateRequestID() string {

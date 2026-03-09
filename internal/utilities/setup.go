@@ -19,11 +19,11 @@ type LoadOptions struct {
 
 func Load[T any](ctx context.Context, opts ...LoadOptions) (*T, error) {
 	Info(ctx, "loading configuration")
-	var cfg T
 	var options LoadOptions
 	if len(opts) > 0 {
 		options = opts[0]
 	}
+	var cfg T
 	if options.ConfigPath != "" {
 		if _, err := os.Stat(options.ConfigPath); err == nil {
 			if err := cleanenv.ReadConfig(options.ConfigPath, &cfg); err != nil {

@@ -4,22 +4,17 @@ import (
 	"context"
 	"fmt"
 
+	_ "github.com/flexer2006/case-person-enrichment-go/docs/swagger"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
-	"github.com/flexer2006/case-person-enrichment-go/internal/utilities"
+	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilities"
+
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"
-
-	_ "github.com/flexer2006/case-person-enrichment-go/docs/swagger"
 )
 
-// @title Person Enrichment API
+// @title PES API
 // @version 1.0
-// @description API for managing and enriching person data with external services
-// @contact.name API Support
-// @contact.email andrewgo1133official@gmail.com
-// @license.name MIT
-// @license.url https://opensource.org/licenses/MIT
 // @BasePath /api/v1
 
 type Server struct {
@@ -31,7 +26,7 @@ func New(config domain.Config, api ports.API, repositories ports.Repositories) *
 	app := fiber.New(fiber.Config{
 		ReadTimeout:  config.Server.ReadTimeout,
 		WriteTimeout: config.Server.WriteTimeout,
-		AppName:      "Person Enrichment Service",
+		AppName:      "PES",
 	})
 	app.Get("/swagger", func(c fiber.Ctx) error {
 		r := c.Redirect()
@@ -45,18 +40,30 @@ func New(config domain.Config, api ports.API, repositories ports.Repositories) *
 		return c.SendFile("./docs/swagger/swagger.json")
 	})
 	Setup(app, api, repositories)
-	return &Server{
+	return new(Server{
 		app:    app,
 		config: config,
-	}
+	})
+}
+
+func Setup(app *fiber.App, api ports.API, repositories ports.Repositories) {
+	personHandler, v1 := NewPersonHandler(api, repositories), app.Group("/api/v1")
+	persons := v1.Group("/persons")
+	persons.Get("/", personHandler.GetPersons)
+	persons.Get("/:id", personHandler.GetPersonByID)
+	persons.Post("/", personHandler.CreatePerson)
+	persons.Put("/:id", personHandler.UpdatePerson)
+	persons.Patch("/:id", personHandler.UpdatePerson)
+	persons.Delete("/:id", personHandler.DeletePerson)
+	persons.Post("/:id/enrich", personHandler.EnrichPerson)
 }
 
 func (s *Server) Start(ctx context.Context) error {
 	address := fmt.Sprintf("%s:%d", s.config.Server.Host, s.config.Server.Port)
-	utilities.Info(ctx, "starting HTTP server", zap.String("address", address))
+	logger.Info(ctx, "starting HTTP server", zap.String("address", address))
 	go func() {
 		if err := s.app.Listen(address); err != nil {
-			utilities.Error(ctx, "failed to start HTTP server", zap.Error(err))
+			logger.Error(ctx, "failed to start HTTP server", zap.Error(err))
 		}
 	}()
 	<-ctx.Done()
@@ -64,14 +71,10 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	utilities.Info(ctx, "stopping HTTP server")
+	logger.Info(ctx, "stopping HTTP server")
 	if err := s.app.ShutdownWithContext(ctx); err != nil {
-		utilities.Error(ctx, "failed to shutdown HTTP server gracefully", zap.Error(err))
+		logger.Error(ctx, "failed to shutdown HTTP server gracefully", zap.Error(err))
 		return fmt.Errorf("failed to shutdown HTTP server gracefully: %w", err)
 	}
 	return nil
-}
-
-func (s *Server) GetConfig() domain.Config {
-	return s.config
 }

@@ -19,3 +19,24 @@ type Person struct {
 	Nationality            *string   `db:"nationality" json:"nationality,omitempty"`
 	NationalityProbability *float64  `db:"nationality_probability" json:"nationality_probability,omitempty"`
 }
+
+type AgeResponse struct { // agify.io
+	Name  string `json:"name"`
+	Age   int    `json:"age"`
+	Count int    `json:"count"`
+}
+
+type GenderResponse struct { // genderize.io
+	Name        string  `json:"name"`
+	Gender      string  `json:"gender"`
+	Probability float64 `json:"probability"`
+	Count       int     `json:"count"`
+}
+
+type NationalityResponse struct { // nationalize.io
+	Countries []struct {
+		Probability float64 `json:"probability"`
+		CountryID   string  `json:"country_id"`
+	} `json:"country"`
+	Name string `json:"name"`
+}
