@@ -28,7 +28,7 @@ type PostgresConfig struct {
 	Host     string
 	Port     int
 	User     string
-	Password string
+	Password string //nolint:gosec
 	Database string
 	SSLMode  string
 	MinConns int

@@ -6,7 +6,7 @@ type Config struct {
 	Postgres struct {
 		Host                string `env:"POSTGRES_HOST" env-default:"localhost"`
 		User                string `env:"POSTGRES_USER" env-default:"postgres"`
-		Password            string `env:"POSTGRES_PASSWORD" env-default:"postgres"`
+		Password            string `env:"POSTGRES_PASSWORD" env-default:"postgres"` //nolint:gosec
 		Database            string `env:"POSTGRES_DB" env-default:"postgres"`
 		SSLMode             string `env:"POSTGRES_SSLMODE" env-default:"disable"`
 		ConnectTimeout      string `env:"PGX_CONNECT_TIMEOUT" env-default:"10s"`

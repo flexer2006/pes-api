@@ -95,7 +95,7 @@ func (r *Repository) GetPersons(ctx context.Context, filter map[string]any, offs
         SELECT id, name, surname, patronymic, age, gender, gender_probability, 
                nationality, nationality_probability, created_at, updated_at
     ` + baseQuery
-	var args []interface{}
+	var args []any
 	argNum := 1
 	var conditions []string
 	for field, value := range filter {

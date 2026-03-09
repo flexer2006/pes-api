@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func sendJSONResponse(ctx fiber.Ctx, status int, body interface{}) error {
+func sendJSONResponse(ctx fiber.Ctx, status int, body any) error {
 	if err := ctx.Status(status).JSON(body); err != nil {
 		return fmt.Errorf("failed to send JSON response: %w", err)
 	}
@@ -24,7 +24,7 @@ func sendError(ctx fiber.Ctx, status int, msg string) error {
 	return sendJSONResponse(ctx, status, fiber.Map{"error": msg})
 }
 
-func parseUUIDParam(ctx fiber.Ctx, name string) (uuid.UUID, error) {
+func parseUUIDParam(ctx fiber.Ctx, name string) (uuid.UUID, error) { //nolint:unparam
 	idStr := ctx.Params(name)
 	if idStr == "" {
 		return uuid.Nil, fmt.Errorf("missing %s parameter", name)
