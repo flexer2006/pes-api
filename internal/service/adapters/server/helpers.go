@@ -79,7 +79,7 @@ func statusMessage(err error) (int, string) {
 	return fiber.StatusInternalServerError, "Internal server error"
 }
 
-func parseUUIDParam(ctx fiber.Ctx, name string) (uuid.UUID, error) {
+func parseUUIDParam(ctx fiber.Ctx, name string) (uuid.UUID, error) { //nolint:unparam
 	idStr := ctx.Params(name)
 	if idStr == "" {
 		return uuid.Nil, fmt.Errorf("%w: missing %s", domain.ErrInvalidUUID, name)

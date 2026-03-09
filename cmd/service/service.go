@@ -7,7 +7,7 @@ import (
 
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/app"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
-	. "github.com/flexer2006/case-person-enrichment-go/internal/utilities"
+	. "github.com/flexer2006/case-person-enrichment-go/internal/utilities" //nolint:staticcheck
 	"github.com/flexer2006/case-person-enrichment-go/internal/utilities/database"
 
 	"go.uber.org/zap"

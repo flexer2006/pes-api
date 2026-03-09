@@ -59,7 +59,7 @@ func NewConsole(level zapcore.Level, json bool) *Logger {
 	return new(Logger{zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))})
 }
 
-func (l *Logger) with(fields ...zap.Field) *Logger { return new(Logger{l.Logger.With(fields...)}) }
+func (l *Logger) with(fields ...zap.Field) *Logger { return new(Logger{l.Logger.With(fields...)}) } //nolint:staticcheck
 
 func fromContext(ctx context.Context) *Logger {
 	if ctx == nil {

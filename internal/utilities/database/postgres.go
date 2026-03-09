@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/flexer2006/case-person-enrichment-go/internal/utilities"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )

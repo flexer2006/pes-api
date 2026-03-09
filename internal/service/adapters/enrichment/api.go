@@ -78,12 +78,17 @@ func getJSON[T any](a *api, ctx context.Context, baseURL string, params map[stri
 		logger.Error(ctx, "failed to create request", zap.Error(err))
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+	//nolint:gosec
 	resp, err := a.httpCli.Do(req)
 	if err != nil {
 		logger.Error(ctx, "request execution failed", zap.Error(err))
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			logger.Warn(ctx, "failed to close response body", zap.Error(cerr))
+		}
+	}()
 	if resp.StatusCode != http.StatusOK {
 		logger.Error(ctx, "API returned non-200 status code", zap.Int("status_code", resp.StatusCode))
 		return nil, fmt.Errorf("%w: status %d", domain.ErrNon200Response, resp.StatusCode)
