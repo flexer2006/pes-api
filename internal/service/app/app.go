@@ -9,30 +9,29 @@ import (
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/postgres"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/server"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/logger"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
-	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilities"
-	dbpkg "github.com/flexer2006/case-person-enrichment-go/internal/utilities/database"
 
 	"go.uber.org/zap"
 )
 
 type Application struct {
-	db         dbpkg.PostgresProvider
+	db         *postgres.Database
 	config     *domain.Config
 	httpServer *server.Server
 }
 
-func NewApplication(ctx context.Context, config *domain.Config, database dbpkg.PostgresProvider, apiAdapter ports.API) (*Application, error) {
+func NewApplication(ctx context.Context, config *domain.Config, database *postgres.Database, apiAdapter ports.API) (*Application, error) {
 	logger.Info(ctx, "initializing application")
 	repos := postgres.New(database)
 	if apiAdapter == nil {
 		apiAdapter = enrichment.NewAPI()
 	}
-	app := new(Application{
+	app := &Application{
 		config:     config,
 		db:         database,
 		httpServer: server.New(*config, apiAdapter, repos),
-	})
+	}
 	logger.Info(ctx, "application initialized successfully")
 	return app, nil
 }

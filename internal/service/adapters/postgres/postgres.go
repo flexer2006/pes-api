@@ -7,9 +7,8 @@ import (
 	"time"
 
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/logger"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
-	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilities"
-	"github.com/flexer2006/case-person-enrichment-go/internal/utilities/database"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -23,11 +22,11 @@ const (
 )
 
 type Repository struct {
-	db database.PostgresProvider
+	db ports.Database
 }
 
-func New(db database.PostgresProvider) ports.Repositories {
-	return new(Repository{db: db})
+func New(db ports.Database) ports.Repositories {
+	return &Repository{db: db}
 }
 
 func (r *Repository) GetByID(ctx context.Context, personID uuid.UUID) (*domain.Person, error) {
@@ -95,8 +94,7 @@ func (r *Repository) CreatePerson(ctx context.Context, person *domain.Person) er
 		person.UpdatedAt,
 	)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
 			logger.Error(ctx, "person with this ID already exists",
 				zap.String("id", person.ID.String()),
 				zap.Error(err))

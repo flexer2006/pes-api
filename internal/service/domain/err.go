@@ -12,4 +12,7 @@ var (
 
 	ErrEmptyName      = errors.New("name cannot be empty")
 	ErrNon200Response = errors.New("API returned non-200 status code")
+
+	ErrInvalidConfiguration      = errors.New("invalid database configuration: required fields missing")
+	ErrMigrationPathNotSpecified = errors.New("migration path not specified")
 )

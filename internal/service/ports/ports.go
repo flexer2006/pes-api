@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/google/uuid"
 )
@@ -12,6 +13,13 @@ type API interface {
 	GetAgeByName(ctx context.Context, name string) (int, float64, error)
 	GetGenderByName(ctx context.Context, name string) (string, float64, error)
 	GetNationalityByName(ctx context.Context, name string) (string, float64, error)
+}
+
+type Database interface {
+	Pool() *pgxpool.Pool
+	Close(ctx context.Context)
+	Ping(ctx context.Context) error
+	GetDSN() string
 }
 
 type Repositories interface {

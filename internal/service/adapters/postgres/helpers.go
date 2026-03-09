@@ -4,14 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
-	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilities"
-	"github.com/google/uuid"
-	"go.uber.org/zap"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/logger"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
 func sqlNullStr(ns sql.NullString) *string {
@@ -34,6 +35,16 @@ func sqlNullFloat(ns sql.NullFloat64) *float64 {
 		return &ns.Float64
 	}
 	return nil
+}
+
+func clamp32(n int) int32 {
+	if n <= 0 {
+		return 0
+	}
+	if n > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(n)
 }
 
 func buildFilter[K comparable, V any](filter map[K]V, columns map[K]string) (string, []any) {

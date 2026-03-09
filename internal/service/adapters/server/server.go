@@ -6,8 +6,8 @@ import (
 
 	_ "github.com/flexer2006/case-person-enrichment-go/docs/swagger"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/logger"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
-	logger "github.com/flexer2006/case-person-enrichment-go/internal/utilities"
 
 	"github.com/gofiber/fiber/v3"
 	"go.uber.org/zap"

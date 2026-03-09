@@ -5,11 +5,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/adapters/postgres"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/app"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
-	. "github.com/flexer2006/case-person-enrichment-go/internal/utilities" //nolint:staticcheck
-	"github.com/flexer2006/case-person-enrichment-go/internal/utilities/database"
-
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/logger"
 	"go.uber.org/zap"
 )
 
@@ -20,36 +19,36 @@ func main() {
 }
 
 func run() error {
-	SetGlobal(NewConsole(InfoLevel, true))
-	defer func() { _ = Global().Sync() }()
+	logger.SetGlobal(logger.NewConsole(logger.InfoLevel, true))
+	defer func() { _ = logger.Global().Sync() }()
 	ctx := context.Background()
-	cfg, err := Load[domain.Config](ctx, LoadOptions{ConfigPath: "./deploy/.env"})
+	cfg, err := app.Load[domain.Config](ctx, app.LoadOptions{ConfigPath: "./deploy/.env"})
 	if err != nil {
-		Error(ctx, "load config", zap.Error(err))
+		logger.Error(ctx, "load config", zap.Error(err))
 		return err
 	}
-	var finalLogger *Logger
+	var finalLogger *logger.Logger
 	if cfg.Logger.Model == "production" {
-		finalLogger, err = NewProduction()
+		finalLogger, err = logger.NewProduction()
 	} else {
 		if cfg.Logger.Model != "development" {
-			Warn(ctx, "unknown logger model, using development", zap.String("model", cfg.Logger.Model))
+			logger.Warn(ctx, "unknown logger model, using development", zap.String("model", cfg.Logger.Model))
 		}
-		finalLogger, err = NewDevelopment()
+		finalLogger, err = logger.NewDevelopment()
 	}
 	if err != nil {
-		Error(ctx, "init logger", zap.Error(err))
+		logger.Error(ctx, "init logger", zap.Error(err))
 		return err
 	}
-	SetGlobal(finalLogger)
+	logger.SetGlobal(finalLogger)
 	shutdownTimeout, err := time.ParseDuration(cfg.Graceful.ShutdownTimeout)
 	if err != nil {
-		Error(ctx, "bad duration, defaulting", zap.Error(err))
+		logger.Error(ctx, "bad duration, defaulting", zap.Error(err))
 		shutdownTimeout = 5 * time.Second
 	}
-	Info(ctx, "initializing database")
-	dbCfg := database.Config{
-		Postgres: database.PostgresConfig{
+	logger.Info(ctx, "initializing database")
+	dbCfg := postgres.Config{
+		Postgres: postgres.PostgresConfig{
 			Host:     cfg.Postgres.Host,
 			Port:     cfg.Postgres.Port,
 			User:     cfg.Postgres.User,
@@ -59,48 +58,40 @@ func run() error {
 			MinConns: cfg.Postgres.PoolMinConns,
 			MaxConns: cfg.Postgres.PoolMaxConns,
 		},
-		Migrate:         database.MigrateConfig{Path: cfg.Migrations.Path},
+		MigrationsPath:  cfg.Migrations.Path,
 		ApplyMigrations: true,
 	}
-	data, err := database.New(ctx, dbCfg)
+	data, err := postgres.NewDatabase(ctx, dbCfg)
 	if err != nil {
-		Error(ctx, "init db", zap.Error(err))
+		logger.Error(ctx, "init db", zap.Error(err))
 		return err
 	}
 	if err := data.Ping(ctx); err != nil {
-		Error(ctx, "db ping", zap.Error(err))
+		logger.Error(ctx, "db ping", zap.Error(err))
 		return err
 	}
-	switch version, dirty, err := data.GetMigrationVersion(ctx); {
-	case err != nil:
-		Warn(ctx, "migration version", zap.Error(err))
-	case dirty:
-		Warn(ctx, "dirty migration", zap.Uint("version", version))
-	default:
-		Info(ctx, "migration", zap.Uint("version", version))
-	}
-	Info(ctx, "database ready")
-	application, err := app.NewApplication(ctx, cfg, data.Provider(), nil)
+	logger.Info(ctx, "database ready")
+	application, err := app.NewApplication(ctx, cfg, data, nil)
 	if err != nil {
-		Error(ctx, "init app", zap.Error(err))
+		logger.Error(ctx, "init app", zap.Error(err))
 		return err
 	}
 	appCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go func() {
 		if err := application.Start(appCtx); err != nil {
-			Error(ctx, "app stopped", zap.Error(err))
+			logger.Error(ctx, "app stopped", zap.Error(err))
 			cancel()
 		}
 	}()
-	Info(ctx, "service started", zap.String("env", cfg.Logger.Model), zap.String("level", cfg.Logger.Level))
-	err = Shutdown(ctx, shutdownTimeout,
+	logger.Info(ctx, "service started", zap.String("env", cfg.Logger.Model), zap.String("level", cfg.Logger.Level))
+	err = app.Shutdown(ctx, shutdownTimeout,
 		func(ctx context.Context) error { cancel(); return application.Stop(ctx) },
-		func(ctx context.Context) error { Info(ctx, "closing db"); data.Close(ctx); return nil },
+		func(ctx context.Context) error { logger.Info(ctx, "closing db"); data.Close(ctx); return nil },
 	)
 	if err != nil {
-		Error(ctx, "shutdown error", zap.Error(err))
+		logger.Error(ctx, "shutdown error", zap.Error(err))
 	}
-	Info(ctx, "shutdown complete")
+	logger.Info(ctx, "shutdown complete")
 	return nil
 }
