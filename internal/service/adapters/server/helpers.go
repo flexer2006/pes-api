@@ -14,11 +14,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type Integer interface {
+type integer interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
 
-func parseIntQuery[T Integer](ctx fiber.Ctx, name string, defaultVal, min, max T) T {
+func parseIntQuery[T integer](ctx fiber.Ctx, name string, defaultVal, min, max T) T {
 	str := ctx.Query(name)
 	if str == "" {
 		return defaultVal

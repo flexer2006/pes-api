@@ -16,57 +16,40 @@ import (
 	"go.uber.org/zap"
 )
 
-type Config struct {
-	Postgres        PostgresConfig
-	MigrationsPath  string
-	ApplyMigrations bool
-}
-
 type PostgresConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string //nolint:gosec
-	Database string
-	SSLMode  string
-	MinConns int
-	MaxConns int
-}
-
-func (c PostgresConfig) Validate() error {
-	if c.Host == "" || c.Port == 0 || c.User == "" || c.Database == "" {
-		return domain.ErrInvalidConfiguration
-	}
-	return nil
-}
-
-func (c PostgresConfig) DSN() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", c.User, c.Password, c.Host, c.Port, c.Database, c.SSLMode)
+	Host, User, Password, Database, SSLMode string //nolint:gosec
+	Port, MinConns, MaxConns                int
 }
 
 type Database struct {
 	pool *pgxpool.Pool
-	dsn  string
 }
 
-func NewDatabase(ctx context.Context, cfg Config) (*Database, error) {
-	if err := cfg.Postgres.Validate(); err != nil {
+func NewDatabase(ctx context.Context, cfg PostgresConfig) (*Database, error) {
+	if cfg.Host == "" || cfg.Port == 0 || cfg.User == "" || cfg.Database == "" {
+		err := domain.ErrInvalidConfiguration
 		logger.Error(ctx, "invalid database configuration", zap.Error(err))
 		return nil, err
 	}
-	dsn := cfg.Postgres.DSN()
-	pool, err := connect(ctx, dsn, cfg.Postgres.MinConns, cfg.Postgres.MaxConns)
+	logger.Info(ctx, "connecting to postgres database")
+	poolCfg, err := pgxpool.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database, cfg.SSLMode))
 	if err != nil {
-		return nil, fmt.Errorf("setup db: %w", err)
+		logger.Error(ctx, "parse config failed", zap.Error(err))
+		return nil, fmt.Errorf("setup db: parse config: %w", err)
 	}
-	db := new(Database{pool: pool, dsn: dsn})
-	if cfg.ApplyMigrations && cfg.MigrationsPath != "" {
-		if err := runMigrations(ctx, cfg.MigrationsPath, dsn); err != nil {
-			db.Close(ctx)
-			return nil, err
-		}
+	poolCfg.MinConns, poolCfg.MaxConns, poolCfg.ConnConfig.ConnectTimeout, poolCfg.HealthCheckPeriod = clamp32(cfg.MinConns), clamp32(cfg.MaxConns), 5*time.Second, 1*time.Minute
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		logger.Error(ctx, "create pool failed", zap.Error(err))
+		return nil, fmt.Errorf("setup db: create pool: %w", err)
 	}
-	return db, nil
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		logger.Error(ctx, "ping failed", zap.Error(err))
+		return nil, fmt.Errorf("setup db: ping: %w", err)
+	}
+	logger.Info(ctx, "connected to postgres database")
+	return new(Database{pool: pool}), nil
 }
 
 func (d *Database) Pool() *pgxpool.Pool { return d.pool }
@@ -85,34 +68,8 @@ func (d *Database) Ping(ctx context.Context) error {
 	return d.pool.Ping(ctx)
 }
 
-func (d *Database) GetDSN() string { return d.dsn }
-
-func connect(ctx context.Context, dsn string, minConn, maxConn int) (*pgxpool.Pool, error) {
-	logger.Info(ctx, "connecting to postgres database")
-	cfg, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		logger.Error(ctx, "parse config failed", zap.Error(err))
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
-	cfg.MinConns, cfg.MaxConns = clamp32(minConn), clamp32(maxConn)
-	cfg.ConnConfig.ConnectTimeout = 5 * time.Second
-	cfg.HealthCheckPeriod = 1 * time.Minute
-	pool, err := pgxpool.NewWithConfig(ctx, cfg)
-	if err != nil {
-		logger.Error(ctx, "create pool failed", zap.Error(err))
-		return nil, fmt.Errorf("create pool: %w", err)
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		logger.Error(ctx, "ping failed", zap.Error(err))
-		return nil, fmt.Errorf("ping: %w", err)
-	}
-	logger.Info(ctx, "connected to postgres database")
-	return pool, nil
-}
-
-func runMigrations(ctx context.Context, path, dsn string) error {
-	mig, err := migrate.New("file://"+path, dsn)
+func RunMigration(ctx context.Context, path string, cfg PostgresConfig) error {
+	mig, err := migrate.New("file://"+path, fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database, cfg.SSLMode))
 	if err != nil {
 		logger.Error(ctx, "failed to create migration instance", zap.Error(err), zap.String("path", path))
 		return fmt.Errorf("migrations: %w", err)

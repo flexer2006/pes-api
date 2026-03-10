@@ -1,4 +1,4 @@
-package domain
+package config
 
 import "time"
 
@@ -17,7 +17,6 @@ type Config struct {
 		PoolMaxConnLifetime int    `env:"PGX_POOL_MAX_CONN_LIFETIME" env-default:"3600"`
 		PoolMaxConnIdleTime int    `env:"PGX_POOL_MAX_CONN_IDLE_TIME" env-default:"600"`
 	}
-
 	Logger struct {
 		Level        string `env:"LOGGER_LEVEL" env-default:"info"`
 		Format       string `env:"LOGGER_FORMAT" env-default:"json"`
@@ -27,18 +26,15 @@ type Config struct {
 		Caller       bool   `env:"LOGGER_CALLER" env-default:"true"`
 		Stacktrace   bool   `env:"LOGGER_STACKTRACE" env-default:"true"`
 	}
-
 	Server struct {
-		Host         string        `env:"HTTP_HOST" env-default:"0.0.0.0"`
-		Port         int           `env:"HTTP_PORT" env-default:"8080"`
-		ReadTimeout  time.Duration `env:"HTTP_READ_TIMEOUT" env-default:"5s"`
+		Host         string        `env:"HTTP_HOST"          env-default:"0.0.0.0"`
+		ReadTimeout  time.Duration `env:"HTTP_READ_TIMEOUT"  env-default:"5s"`
 		WriteTimeout time.Duration `env:"HTTP_WRITE_TIMEOUT" env-default:"10s"`
+		Port         int           `env:"HTTP_PORT"          env-default:"8080"`
 	}
-
 	Migrations struct {
 		Path string `env:"MIGRATIONS_DIR" env-default:"./migrations"`
 	}
-
 	Graceful struct {
 		ShutdownTimeout string `env:"GRACEFUL_SHUTDOWN_TIMEOUT" env-default:"5s"`
 	}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	_ "github.com/flexer2006/case-person-enrichment-go/docs/swagger"
-	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
+	"github.com/flexer2006/case-person-enrichment-go/internal/service/config"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/logger"
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/ports"
 
@@ -19,15 +19,18 @@ import (
 
 type Server struct {
 	app    *fiber.App
-	config domain.Config
+	config config.Config
 }
 
-func New(config domain.Config, api ports.API, repositories ports.Repositories) *Server {
+func New(config config.Config, api ports.API, repositories ports.Repositories) *Server {
 	app := fiber.New(fiber.Config{
 		ReadTimeout:  config.Server.ReadTimeout,
 		WriteTimeout: config.Server.WriteTimeout,
 		AppName:      "PES",
 	})
+	personHandler := newPersonHandler(api, repositories)
+	v1 := app.Group("/api/v1")
+	persons := v1.Group("/persons")
 	app.Get("/swagger", func(c fiber.Ctx) error {
 		r := c.Redirect()
 		r.Status(fiber.StatusFound)
@@ -39,23 +42,17 @@ func New(config domain.Config, api ports.API, repositories ports.Repositories) *
 	app.Get("/swagger/swagger.json", func(c fiber.Ctx) error {
 		return c.SendFile("./docs/swagger/swagger.json")
 	})
-	Setup(app, api, repositories)
+	persons.Get("/", personHandler.getPersons)
+	persons.Get("/:id", personHandler.getPersonByID)
+	persons.Post("/", personHandler.createPerson)
+	persons.Put("/:id", personHandler.updatePerson)
+	persons.Patch("/:id", personHandler.updatePerson)
+	persons.Delete("/:id", personHandler.deletePerson)
+	persons.Post("/:id/enrich", personHandler.enrichPerson)
 	return new(Server{
 		app:    app,
 		config: config,
 	})
-}
-
-func Setup(app *fiber.App, api ports.API, repositories ports.Repositories) {
-	personHandler, v1 := NewPersonHandler(api, repositories), app.Group("/api/v1")
-	persons := v1.Group("/persons")
-	persons.Get("/", personHandler.GetPersons)
-	persons.Get("/:id", personHandler.GetPersonByID)
-	persons.Post("/", personHandler.CreatePerson)
-	persons.Put("/:id", personHandler.UpdatePerson)
-	persons.Patch("/:id", personHandler.UpdatePerson)
-	persons.Delete("/:id", personHandler.DeletePerson)
-	persons.Post("/:id/enrich", personHandler.EnrichPerson)
 }
 
 func (s *Server) Start(ctx context.Context) error {

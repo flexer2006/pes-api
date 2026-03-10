@@ -12,13 +12,13 @@ import (
 	"go.uber.org/zap"
 )
 
-type PersonHandler struct {
+type personHandler struct {
 	repositories ports.Repositories
 	api          ports.API
 }
 
-func NewPersonHandler(api ports.API, repositories ports.Repositories) *PersonHandler {
-	return new(PersonHandler{api: api, repositories: repositories})
+func newPersonHandler(api ports.API, repositories ports.Repositories) *personHandler {
+	return new(personHandler{api: api, repositories: repositories})
 }
 
 // GetPersons godoc
@@ -38,7 +38,7 @@ func NewPersonHandler(api ports.API, repositories ports.Repositories) *PersonHan
 // @Success 200 {object} map[string]interface{} "Successfully retrieved persons list"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /persons [get]
-func (h *PersonHandler) GetPersons(c fiber.Ctx) error {
+func (h *personHandler) getPersons(c fiber.Ctx) error {
 	reqCtx := c.Context()
 	limit, offset := parseIntQuery(c, "limit", 10, 1, 0), parseIntQuery(c, "offset", 0, 0, 0)
 	filter := make(map[string]any)
@@ -79,7 +79,7 @@ func (h *PersonHandler) GetPersons(c fiber.Ctx) error {
 // @Failure 404 {object} map[string]string "Person not found"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /persons/{id} [get]
-func (h *PersonHandler) GetPersonByID(c fiber.Ctx) error {
+func (h *personHandler) getPersonByID(c fiber.Ctx) error {
 	id, err := parseUUIDParam(c, "id")
 	if err != nil {
 		return respondError(c, err)
@@ -103,7 +103,7 @@ func (h *PersonHandler) GetPersonByID(c fiber.Ctx) error {
 // @Failure 400 {object} map[string]string "Bad request - Invalid input"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /persons [post]
-func (h *PersonHandler) CreatePerson(c fiber.Ctx) error {
+func (h *personHandler) createPerson(c fiber.Ctx) error {
 	person, err := bindBody[domain.Person](c)
 	if err != nil {
 		_ = respondError(c, err)
@@ -141,7 +141,7 @@ func (h *PersonHandler) CreatePerson(c fiber.Ctx) error {
 // @Failure 404 {object} map[string]string "Person not found"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /persons/{id} [put]
-func (h *PersonHandler) UpdatePerson(c fiber.Ctx) error {
+func (h *personHandler) updatePerson(c fiber.Ctx) error {
 	reqCtx := c.Context()
 	id, err := parseUUIDParam(c, "id")
 	if err != nil {
@@ -181,7 +181,7 @@ func (h *PersonHandler) UpdatePerson(c fiber.Ctx) error {
 // @Failure 404 {object} map[string]string "Person not found"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Router /persons/{id} [delete]
-func (h *PersonHandler) DeletePerson(c fiber.Ctx) error {
+func (h *personHandler) deletePerson(c fiber.Ctx) error {
 	id, err := parseUUIDParam(c, "id")
 	if err != nil {
 		return respondError(c, err)
@@ -211,7 +211,7 @@ func (h *PersonHandler) DeletePerson(c fiber.Ctx) error {
 // K is the concrete type returned by the external API (int for age, string for
 // gender/nationality).  `existing` must be a pointer to a pointer field on
 // Person, so the caller can pass &person.Age, &person.Gender, etc.
-func (h *PersonHandler) EnrichPerson(c fiber.Ctx) error {
+func (h *personHandler) enrichPerson(c fiber.Ctx) error {
 	id, err := parseUUIDParam(c, "id")
 	if err != nil {
 		return respondError(c, err)

@@ -4,10 +4,19 @@ import (
 	"context"
 
 	"github.com/flexer2006/case-person-enrichment-go/internal/service/domain"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+type Repositories interface {
+	GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error)
+	ExistsByID(ctx context.Context, id uuid.UUID) (bool, error)
+	CreatePerson(ctx context.Context, person *domain.Person) error
+	UpdatePerson(ctx context.Context, person *domain.Person) error
+	DeletePerson(ctx context.Context, id uuid.UUID) error
+}
 
 type API interface {
 	GetAgeByName(ctx context.Context, name string) (int, float64, error)
@@ -19,14 +28,4 @@ type Database interface {
 	Pool() *pgxpool.Pool
 	Close(ctx context.Context)
 	Ping(ctx context.Context) error
-	GetDSN() string
-}
-
-type Repositories interface {
-	GetPersons(ctx context.Context, filter map[string]any, offset, limit int) ([]*domain.Person, int, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*domain.Person, error)
-	ExistsByID(ctx context.Context, id uuid.UUID) (bool, error)
-	CreatePerson(ctx context.Context, person *domain.Person) error
-	UpdatePerson(ctx context.Context, person *domain.Person) error
-	DeletePerson(ctx context.Context, id uuid.UUID) error
 }

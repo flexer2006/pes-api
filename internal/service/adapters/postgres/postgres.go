@@ -26,7 +26,7 @@ type Repository struct {
 }
 
 func New(db ports.Database) ports.Repositories {
-	return &Repository{db: db}
+	return new(Repository{db: db})
 }
 
 func (r *Repository) GetByID(ctx context.Context, personID uuid.UUID) (*domain.Person, error) {

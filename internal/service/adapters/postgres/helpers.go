@@ -15,38 +15,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func sqlNullStr(ns sql.NullString) *string {
-	if ns.Valid {
-		return &ns.String
-	}
-	return nil
-}
-
-func sqlNullInt(ns sql.NullInt32) *int {
-	if ns.Valid {
-		v := int(ns.Int32)
-		return &v
-	}
-	return nil
-}
-
-func sqlNullFloat(ns sql.NullFloat64) *float64 {
-	if ns.Valid {
-		return &ns.Float64
-	}
-	return nil
-}
-
-func clamp32(n int) int32 {
-	if n <= 0 {
-		return 0
-	}
-	if n > math.MaxInt32 {
-		return math.MaxInt32
-	}
-	return int32(n)
-}
-
 func buildFilter[K comparable, V any](filter map[K]V, columns map[K]string) (string, []any) {
 	var conditions []string
 	args := make([]any, 0, len(filter))
@@ -114,6 +82,38 @@ func scanRows[T any](rows pgx.Rows, scan func(pgx.Row) (*T, error)) ([]*T, error
 		return nil, err
 	}
 	return items, nil
+}
+
+func sqlNullStr(ns sql.NullString) *string {
+	if ns.Valid {
+		return &ns.String
+	}
+	return nil
+}
+
+func sqlNullInt(ns sql.NullInt32) *int {
+	if ns.Valid {
+		v := int(ns.Int32)
+		return &v
+	}
+	return nil
+}
+
+func sqlNullFloat(ns sql.NullFloat64) *float64 {
+	if ns.Valid {
+		return &ns.Float64
+	}
+	return nil
+}
+
+func clamp32(n int) int32 {
+	if n <= 0 {
+		return 0
+	}
+	if n > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(n)
 }
 
 func wrapError(ctx context.Context, msg string, err error) error {
