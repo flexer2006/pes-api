@@ -26,3 +26,5 @@ go.work.sum
 coverage.txt
 profile.cov
 /tmp/
+.golangci.yml
+revive.toml
